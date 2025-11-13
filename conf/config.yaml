@@ -1,0 +1,37 @@
+# Configuración principal del proyecto
+defaults:
+  - model: autoencoder_classic
+  - trainer: default
+  - logger: wandb
+
+# Configuración del dataset
+dataset:
+  path: "/content/drive/MyDrive/Colab Notebooks/Tarea5-IA/dataset"
+  categories: ["cable", "capsule", "screw", "transistor"]
+  selected_category: "cable"
+  image_size: 128  # Según especificaciones del PDF
+  batch_size: 32
+  num_workers: 2
+
+# Configuración del modelo
+# Los parámetros específicos del modelo están en conf/model/
+# Para cambiar la arquitectura, usa: hydra.compose(..., overrides=["model=unet"])
+# El campo 'architecture' se define en cada archivo de modelo para logging
+
+# Configuración del entrenamiento
+trainer:
+  max_epochs: 20
+  learning_rate: 0.001
+  loss_function: "L2"  # L1, L2, SSIM, SSIM_L1
+  scheduler:
+    step_size: 10
+    gamma: 0.5
+
+# Configuración del logger
+logger:
+  project: "tarea05-anomaly-detection"
+  name: null  # Se generará automáticamente
+
+# Configuración del dispositivo
+device: "cuda"  # o "cpu"
+

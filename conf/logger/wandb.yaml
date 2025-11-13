@@ -1,0 +1,7 @@
+# Configuración de WandB
+_target_: pytorch_lightning.loggers.WandbLogger
+
+project: "tarea05-anomaly-detection"
+name: null  # Se generará automáticamente
+save_dir: "./wandb_logs"
+

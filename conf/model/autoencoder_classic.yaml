@@ -1,0 +1,12 @@
+# Configuración del autoencoder clásico
+# NOTA: Las clases están definidas en el notebook y se registran como notebook_models
+_target_: notebook_models.AutoencoderClassic
+
+architecture: "autoencoder_classic"  # Para logging y naming
+
+input_channels: 3
+latent_dim: 128
+
+encoder_channels: [64, 128, 256, 512]
+decoder_channels: [512, 256, 128, 64]
+
