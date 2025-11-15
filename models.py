@@ -8,8 +8,9 @@ import torch.nn as nn
 class AutoencoderClassic(nn.Module):
     """Autoencoder clásico sin skip connections"""
     
-    def __init__(self, input_channels=3, latent_dim=128, encoder_channels=None, decoder_channels=None):
+    def __init__(self, input_channels=3, latent_dim=128, encoder_channels=None, decoder_channels=None, architecture=None):
         super(AutoencoderClassic, self).__init__()
+        self.architecture = architecture  # Store for logging purposes
         
         if encoder_channels is None:
             encoder_channels = [64, 128, 256, 512]
@@ -69,8 +70,9 @@ class AutoencoderClassic(nn.Module):
 class UNetAutoencoder(nn.Module):
     """Autoencoder U-net con skip connections"""
     
-    def __init__(self, input_channels=3, latent_dim=128, encoder_channels=None, decoder_channels=None):
+    def __init__(self, input_channels=3, latent_dim=128, encoder_channels=None, decoder_channels=None, architecture=None):
         super(UNetAutoencoder, self).__init__()
+        self.architecture = architecture  # Store for logging purposes
         
         if encoder_channels is None:
             encoder_channels = [64, 128, 256, 512]
