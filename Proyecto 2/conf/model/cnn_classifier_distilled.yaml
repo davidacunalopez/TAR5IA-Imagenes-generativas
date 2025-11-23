@@ -1,0 +1,27 @@
+# Configuración del modelo CNN clasificador con destilación (Modelo B)
+_target_: notebook_models.CNNClassifier
+
+model_type: "distilled"  # scratch o distilled
+architecture: "cnn_classifier_distilled"
+
+# Estructura basada en ResNet-18 para primeras 3 convoluciones
+# conv1, conv2_x, conv3_x
+conv1_channels: 64
+conv2_channels: [64, 64]
+conv3_channels: [128, 128]
+
+# Clasificador (FC layer)
+num_classes: 10  # 10 clases del dataset
+fc_hidden: 512
+dropout: 0.5
+
+# Embedding dimension (para detección de anomalías)
+embedding_dim: 256
+
+# Configuración de destilación
+distillation:
+  teacher_model: "resnet18"  # ResNet-18 pre-entrenado como teacher
+  temperature: 4.0  # Temperatura para softmax
+  alpha: 0.7  # Peso para la pérdida de destilación (0.7 * distillation_loss + 0.3 * classification_loss)
+
+

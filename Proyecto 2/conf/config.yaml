@@ -1,0 +1,49 @@
+# Configuración principal del Proyecto II
+defaults:
+  - model: cnn_classifier_scratch
+  - trainer: default
+  - logger: wandb
+
+# Configuración del dataset
+dataset:
+  path: "/content/drive/MyDrive/Colab Notebooks/Proyecto2-IA/dataset"  # Ruta al dataset MVTec AD
+  categories: ["bottle", "cable", "capsule", "grid", "metal_nut", "pill", "screw", "tile", "transistor", "zipper"]  # 10 clases
+  selected_categories: ["bottle", "cable", "capsule", "grid", "metal_nut", "pill", "screw", "tile", "transistor", "zipper"]
+  image_size: 128
+  batch_size: 32
+  num_workers: 2
+  train_split: 0.8  # 80% train, 20% validation
+
+# Configuración del modelo
+# Los parámetros específicos del modelo están en conf/model/
+
+# Configuración del entrenamiento
+# Los parámetros están en conf/trainer/
+
+# Configuración del logger
+# Los parámetros están en conf/logger/
+
+# Configuración del dispositivo
+device: "cuda"  # o "cpu"
+
+# Configuración de evaluación de anomalías
+anomaly_detection:
+  method: "mahalanobis"  # mahalanobis, euclidean, reconstruction_loss
+  percentile_threshold: 95  # Percentil para determinar umbral de anomalía
+
+# Configuración de cuantización
+quantization:
+  enabled: false
+  method: "dynamic"  # dynamic, static, qat
+
+# Configuración de DBSCAN
+dbscan:
+  eps: 0.5
+  min_samples: 5
+  use_pca: true
+  pca_components: 50
+  use_tsne: true
+  tsne_components: 2
+  tsne_perplexity: 30
+
+

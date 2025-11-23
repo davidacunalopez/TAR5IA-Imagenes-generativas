@@ -1,0 +1,7 @@
+# Configuración de WandB
+project: "proyecto-ii-anomaly-detection"
+name: null  # Se generará automáticamente
+save_dir: "./wandb_logs"
+log_model: true
+
+
