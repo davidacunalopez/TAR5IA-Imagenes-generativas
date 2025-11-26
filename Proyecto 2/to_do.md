@@ -452,24 +452,51 @@ conf/
 
 **Ubicación en notebook:**
 - Línea 369-395: Implementación de `BasicBlock` (bloques residuales de ResNet)
-- Línea 396-433: Implementación de `CNNClassifier` con estructura ResNet-18:
-  - Línea 410: ✅ `conv1`: Primera convolución `7x7, stride=2` (similar a ResNet-18)
-  - Línea 415: ✅ `conv2_x`: Bloques residuales con `BasicBlock` (2 bloques)
-  - Línea 418: ✅ `conv3_x`: Bloques residuales con `BasicBlock` (2 bloques)
-  - Línea 424-429: ✅ Clasificador FC layer después de las 3 convoluciones
-  - Línea 432: ✅ Capa de embeddings para detección de anomalías
+- Línea 396-433: Implementación de `CNNClassifier` con estructura ResNet-18
+
+#### Comparación detallada con Figura 1 (ResNet-18):
+
+**conv1 (Figura 1, línea 92-93):**
+- Requerido: $7 \times 7,64$, stride 2, seguido de $3 \times 3$ max pool, stride 2
+- Implementado (línea 410-412):
+  - ✅ `nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)`
+  - ✅ `nn.MaxPool2d(kernel_size=3, stride=2, padding=1)`
+- **Estado:** ✅ **COINCIDE EXACTAMENTE**
+
+**conv2_x (Figura 1, línea 94):**
+- Requerido: $\left[\begin{array}{l}3 \times 3,64 \\ 3 \times 3,64\end{array}\right] \times 2$ (output $56 \times 56$)
+- Implementado (línea 415):
+  - ✅ `self._make_layer(64, 64, 64, num_blocks=2, stride=1)`
+  - ✅ `BasicBlock` usa: `3x3, 64` y `3x3, 64` (líneas 374-376)
+  - ✅ `num_blocks=2` crea 2 bloques residuales
+- **Estado:** ✅ **COINCIDE EXACTAMENTE**
+
+**conv3_x (Figura 1, línea 95):**
+- Requerido: $\left[\begin{array}{l}3 \times 3,128 \\ 3 \times 3,128\end{array}\right] \times 2$ (output $28 \times 28$)
+- Implementado (línea 418):
+  - ✅ `self._make_layer(64, 128, 128, num_blocks=2, stride=2)`
+  - ✅ `BasicBlock` usa: `3x3, 128` y `3x3, 128`
+  - ✅ `num_blocks=2` crea 2 bloques residuales
+  - ✅ `stride=2` reduce tamaño de $56 \times 56$ a $28 \times 28$
+- **Estado:** ✅ **COINCIDE EXACTAMENTE**
+
+**BasicBlock (verificación de estructura):**
+- Línea 374: ✅ `nn.Conv2d(..., kernel_size=3, ...)` - Primera convolución $3 \times 3$
+- Línea 376: ✅ `nn.Conv2d(..., kernel_size=3, ...)` - Segunda convolución $3 \times 3$
+- ✅ Skip connection implementada (líneas 382-386, 390)
 
 **Configuración en YAML:**
 - `conf/model/cnn_classifier_scratch.yaml` (líneas 9-11):
   ```yaml
-  conv1_channels: 64
-  conv2_channels: [64, 64]
-  conv3_channels: [128, 128]
+  conv1_channels: 64        # ✅ Coincide con Figura 1
+  conv2_channels: [64, 64]   # ✅ Coincide con Figura 1 (2 bloques de 64)
+  conv3_channels: [128, 128] # ✅ Coincide con Figura 1 (2 bloques de 128)
   ```
 
 **Notas:**
-- ✅ Estructura exacta de ResNet-18 para las primeras 3 convoluciones
-- ✅ Clasificador FC personalizado después de conv3_x
+- ✅ Estructura **EXACTA** de ResNet-18 para las primeras 3 convoluciones según Figura 1
+- ✅ Todos los parámetros (kernel size, stride, canales, número de bloques) coinciden
+- ✅ Clasificador FC personalizado después de conv3_x (como permite el enunciado)
 - ✅ Arquitectura extensible manteniendo las 3 primeras convoluciones iguales
 
 ---
@@ -616,6 +643,1013 @@ conf/
 
 ---
 
+## Verificación: Sección III.B. Modelo C - Embedding de un Autoencoder (Líneas 78-84)
+
+**Fecha de verificación:** 2025-01-27
+
+### ✅ III.B.1. Autoencoder Basado en U-Net (Líneas 80, 84)
+
+**Requisito del enunciado:**
+> Diseñe un modelo de autoencoder basado en **U-Net** que reconstruya las imágenes del set de entrenamiento seleccionado y también permita obtener el embedding correspondiente.  
+> **Nota:** Recordar que buscamos probar diferentes arquitecturas que me construyan embbedins y hacer comparaciones. Arquitectura A es un CNN tradicional entrenado desde 0. Modelo B es el mismo CNN pero aplicado con un proceso de destilado desde el modelo RESNET. Y el modelo C va a ser un autoecoder, vamos a reconstruir la imagen. Este autoencoder esta basado en el modelo U-Net(esto lo podemos ver con la Tarea 5 ya realizada)
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 480-618: Implementación de `UNetAutoencoder(nn.Module)`
+- Línea 482: Documentación: "Autoencoder U-Net con skip connections (Modelo C)"
+- Línea 483: Nota: "Reutilizado de Tarea05"
+
+#### Estructura U-Net:
+
+**Encoder (Líneas 497-509):**
+- ✅ Bloques de encoder con convoluciones `4x4, stride=2`
+- ✅ Canales: `[64, 128, 256, 512]` (configurable)
+- ✅ BatchNorm y ReLU después de cada convolución
+
+**Bottleneck (Líneas 511-515):**
+- ✅ Capa bottleneck que reduce a `latent_dim`
+
+**Decoder con Skip Connections (Líneas 517-546):**
+- ✅ Bloques de decoder con transposed convoluciones
+- ✅ **Skip connections implementadas** (líneas 575-593):
+  - Línea 567-570: Guarda skip connections durante encoding
+  - Línea 579-592: Usa skip connections durante decoding con `torch.cat([x, skip], dim=1)`
+  - Línea 595-608: Usa skip connection en capa final
+- ✅ Canales: `[512, 256, 128, 64]` (configurable)
+- ✅ Capa final con `Tanh()` para normalizar salida
+
+**Notas:**
+- ✅ Skip connections correctamente implementadas (característica clave de U-Net)
+- ✅ Similar a implementación de Tarea 5 (como menciona la nota)
+- ✅ Arquitectura permite reconstrucción de imágenes
+
+---
+
+### ✅ III.B.2. Reconstrucción de Imágenes (Línea 80)
+
+**Requisito del enunciado:**
+> que reconstruya las imágenes del set de entrenamiento seleccionado
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 565-610: Método `forward()` que reconstruye imágenes:
+  ```python
+  def forward(self, x):
+      # Encoder
+      # Bottleneck
+      # Decoder con skip connections
+      x = self.final_layer(x)  # Reconstrucción
+      return x
+  ```
+- Línea 869-877: `training_step()` en `AutoencoderLightning`:
+  ```python
+  x_recon = self(x)  # Reconstrucción
+  loss = self.criterion(x_recon, x)  # Compara reconstrucción vs original
+  ```
+- Línea 880-891: `validation_step()` también reconstruye y calcula pérdida
+- Línea 894-905: `test_step()` reconstruye y extrae embeddings
+
+**Notas:**
+- ✅ El modelo reconstruye imágenes de entrada
+- ✅ La pérdida se calcula comparando reconstrucción vs original
+- ✅ Soporta múltiples funciones de pérdida: L1, L2, SSIM, SSIM_L1
+
+---
+
+### ✅ III.B.3. Extracción de Embeddings (Línea 80)
+
+**Requisito del enunciado:**
+> y también permita obtener el embedding correspondiente
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 548-553: Capa de embeddings:
+  ```python
+  self.embedding_layer = nn.Sequential(
+      nn.AdaptiveAvgPool2d((1, 1)),
+      nn.Flatten(),
+      nn.Linear(latent_dim, embedding_dim)
+  )
+  ```
+- Línea 555-563: Método `encode()` que extrae el vector latente
+- Línea 612-616: Método `get_embedding()`:
+  ```python
+  def get_embedding(self, x):
+      latent, _ = self.encode(x)
+      embedding = self.embedding_layer(latent)
+      return embedding
+  ```
+- Línea 900: Uso en `test_step()`: `embeddings = self.model.get_embedding(x)`
+
+**Notas:**
+- ✅ Embeddings extraídos del espacio latente (bottleneck)
+- ✅ Método `get_embedding()` implementado para facilitar extracción
+- ✅ Embeddings usados para detección de anomalías (ver sección IV)
+
+---
+
+### ✅ III.B.4. Entrenamiento desde 0 (Línea 82)
+
+**Requisito del enunciado:**
+> Este será entrenado completamente desde 0.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 1615: Creación del modelo: `base_model = UNetAutoencoder(**model_config)`
+- No hay carga de pesos pre-entrenados
+- No hay uso de modelos pre-entrenados como base
+- Inicialización con pesos aleatorios (comportamiento por defecto de PyTorch)
+
+**Notas:**
+- ✅ Modelo se inicializa desde cero
+- ✅ No se usa ningún modelo pre-entrenado
+- ✅ Entrenamiento completamente desde 0 (a diferencia del Modelo B que usa destilación)
+
+---
+
+### ✅ III.B.5. Comparación con Otros Modelos (Línea 84 - Nota)
+
+**Requisito del enunciado:**
+> **Nota:** Recordar que buscamos probar diferentes arquitecturas que me construyan embbedins y hacer comparaciones. Arquitectura A es un CNN tradicional entrenado desde 0. Modelo B es el mismo CNN pero aplicado con un proceso de destilado desde el modelo RESNET. Y el modelo C va a ser un autoecoder, vamos a reconstruir la imagen.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Comparación de arquitecturas:**
+
+| Modelo | Arquitectura | Entrenamiento | Embeddings | Propósito |
+|--------|--------------|---------------|------------|-----------|
+| **A** | CNN (ResNet-18 primeras 3 conv) | Desde 0 | De capas convolucionales | Clasificación |
+| **B** | CNN (ResNet-18 primeras 3 conv) | Destilación teacher-student | De capas convolucionales | Clasificación |
+| **C** | U-Net Autoencoder | Desde 0 | Del espacio latente | Reconstrucción |
+
+**Notas:**
+- ✅ Tres arquitecturas diferentes para construir embeddings
+- ✅ Permite comparar diferentes enfoques para detección de anomalías
+- ✅ Modelo C se enfoca en reconstrucción (diferente a A y B que son clasificadores)
+
+---
+
+### ✅ III.B.6. 3 Configuraciones de Hiperparámetros (Ya verificado en III.A.5)
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4009-4088: 3 configuraciones para Modelo C (`model_c_configs`)
+- Variaciones en hiperparámetros:
+  - **Config 1**: `latent_dim=128`, `embedding_dim=128`, loss `L2`, `encoder_channels=[64, 128, 256, 512]`
+  - **Config 2**: `latent_dim=256`, `embedding_dim=256`, loss `SSIM_L1`, `encoder_channels=[64, 128, 256, 512]`
+  - **Config 3**: `latent_dim=64`, `embedding_dim=64`, loss `L1`, `encoder_channels=[32, 64, 128, 256]` (arquitectura más pequeña)
+
+**Notas:**
+- ✅ Ya verificado en sección III.A.5
+- ✅ Total de 9 entrenamientos (3 por cada modelo A, B, C)
+
+---
+
+## Verificación: Sección IV. EVALUACIÓN DE ANOMALÍAS (Líneas 103-136)
+
+**Fecha de verificación:** 2025-01-27
+
+### ✅ IV.1. Cálculo de Representaciones Latentes (Líneas 105-106)
+
+**Requisito del enunciado:**
+> Una vez entrenados los modelos, se deben calcular las representaciones latentes (embeddings) de las imágenes del conjunto de validación para estimar una métrica que permita, posteriormente, identificar los datos anómalos en el conjunto de prueba.  
+> **Nota:** Tomar datos de validacion y apartir de ahi definir una metrica con lo cual vamos a ver que es una anomalia y que no es una anomalia. Realizar la deteccion de anomalias apartir de los embbedings.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4097-4117: Sección "6. Evaluación de Anomalías"
+- Línea 4206-4330: Función `extract_embeddings()` que extrae embeddings de un dataloader
+- Línea 4367-4374: Extracción de embeddings del conjunto normal (validación/entrenamiento)
+- Línea 4382-4385: Extracción de embeddings del conjunto de prueba
+
+**Notas:**
+- ✅ Embeddings extraídos del conjunto de validación/entrenamiento (solo datos normales)
+- ✅ Embeddings extraídos del conjunto de prueba (normales y anómalos)
+- ✅ Funciona para todos los modelos (A, B, C)
+
+---
+
+### ✅ IV.2. Estimación de la Distribución Normal (Líneas 114-125)
+
+**Requisito del enunciado:**
+> A partir del conjunto de validación o entrenamiento correspondiente a la clase sin defectos, se extraen los embeddings de cada imagen mediante el modelo previamente entrenado (para cada modelo A, B y C), ya sea del set de validacion o de entrenamiento para las clases buenas.  
+> Cada embedding puede representarse como un vector $\mathbf{z}_{i} \in \mathbb{R}^{d}$. Con todos los embeddings del conjunto normal se calcula la media $\boldsymbol{\mu}$ y la matriz de covarianza $\boldsymbol{\Sigma}$:  
+> $$
+> \boldsymbol{\mu}=\frac{1}{N} \sum_{i=1}^{N} \mathbf{z}_{i}, \quad \boldsymbol{\Sigma}=\frac{1}{N-1} \sum_{i=1}^{N}\left(\mathbf{z}_{i}-\boldsymbol{\mu}\right)\left(\mathbf{z}_{i}-\boldsymbol{\mu}\right)^{T}
+> $$  
+> De esta forma se modela la distribución normal como una distribución gaussiana multivariada $\mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$, que representa los datos normales en el espacio de embeddings.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4295-4330: Función `estimate_normal_distribution()`:
+  ```python
+  # Media: μ = (1/N) Σ z_i
+  mean = np.mean(normal_embeddings, axis=0)
+  
+  # Matriz de covarianza: Σ = (1/(N-1)) Σ (z_i - μ)(z_i - μ)^T
+  cov = np.cov(normal_embeddings.T)  # np.cov usa (N-1) como denominador
+  ```
+- Línea 4376-4379: Uso en `evaluate_anomaly_detection()`:
+  ```python
+  mean, cov = estimate_normal_distribution(normal_embeddings)
+  ```
+
+**Verificación de fórmulas:**
+- ✅ Media: `np.mean(normal_embeddings, axis=0)` = $\frac{1}{N} \sum_{i=1}^{N} \mathbf{z}_{i}$ ✅
+- ✅ Covarianza: `np.cov(normal_embeddings.T)` = $\frac{1}{N-1} \sum_{i=1}^{N}\left(\mathbf{z}_{i}-\boldsymbol{\mu}\right)\left(\mathbf{z}_{i}-\boldsymbol{\mu}\right)^{T}$ ✅
+- ✅ Modela distribución gaussiana multivariada $\mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ ✅
+
+**Notas:**
+- ✅ Fórmulas implementadas exactamente como en el enunciado
+- ✅ Validación de que embeddings tienen shape (N, d) donde d es la dimensión
+- ✅ Validación de que hay al menos 2 muestras para calcular covarianza
+
+---
+
+### ✅ IV.3. Cálculo de la Distancia de Mahalanobis (Líneas 127-131)
+
+**Requisito del enunciado:**
+> Para una nueva muestra con embedding $\mathbf{z}_{\text{test}}$, se calcula su distancia a la distribución normal.  
+> Esta distancia mide qué tan alejada se encuentra la muestra del centro de la distribución de los datos sin defectos, considerando la forma y correlaciones de dicha distribución.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4155-4203: Función `calculate_mahalanobis_distance()`:
+  ```python
+  def calculate_mahalanobis_distance(embeddings, mean, cov):
+      """
+      Distancia de Mahalanobis: d = sqrt((z - μ)^T Σ^(-1) (z - μ))
+      """
+      # Regularización para evitar singularidad
+      cov_reg = cov + np.eye(cov.shape[0]) * 1e-6
+      cov_inv = inv(cov_reg)
+      
+      # Calcular distancias
+      for emb in embeddings:
+          diff = emb - mean
+          dist = np.sqrt(diff @ cov_inv @ diff.T)
+  ```
+- Línea 4397-4406: Uso en evaluación:
+  ```python
+  if method == "mahalanobis":
+      test_normal_distances = calculate_mahalanobis_distance(test_normal_embeddings, mean, cov)
+      test_anomaly_distances = calculate_mahalanobis_distance(test_anomaly_embeddings, mean, cov)
+  ```
+
+**Verificación de fórmula:**
+- ✅ Fórmula implementada: $d = \sqrt{(\mathbf{z} - \boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{z} - \boldsymbol{\mu})}$ ✅
+- ✅ Regularización añadida para evitar singularidad de la matriz de covarianza
+- ✅ Manejo de errores para distancias inválidas (NaN, Inf)
+
+**Notas:**
+- ✅ Implementación correcta de la distancia de Mahalanobis
+- ✅ Considera correlaciones entre dimensiones (mediante matriz de covarianza)
+- ✅ Calcula distancia para cada embedding del conjunto de prueba
+
+---
+
+### ✅ IV.4. Clasificación usando Percentiles (Línea 133)
+
+**Requisito del enunciado:**
+> A partir de acá debe de averiguar como clasificar una anomalía o una clase sin defectos utilizando comparación de la distancia (e.g tomar el percentil).
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4444-4464: Cálculo de umbral usando percentil:
+  ```python
+  # Determinar umbral usando percentil de las distancias normales del conjunto de validación
+  validation_normal_distances = calculate_mahalanobis_distance(normal_embeddings, mean, cov)
+  threshold = np.percentile(validation_normal_distances, percentile)
+  print(f"📏 Umbral calculado (percentil {percentile}): {threshold:.4f}")
+  ```
+- Línea 4469-4474: Clasificación:
+  ```python
+  all_distances = np.concatenate([test_normal_distances, test_anomaly_distances])
+  predictions = (all_distances > threshold).astype(int)  # 1 = anomalía, 0 = normal
+  true_labels = np.concatenate([np.zeros_like(test_normal_distances), np.ones_like(test_anomaly_distances)])
+  ```
+
+**Configuración:**
+- Línea 1064: `percentile_threshold: 95` en `conf/config.yaml`
+- Línea 4349: Parámetro `percentile=95` por defecto en `evaluate_anomaly_detection()`
+
+**Notas:**
+- ✅ Umbral calculado usando percentil de distancias normales de validación
+- ✅ Clasificación: distancias > umbral = anomalía, distancias ≤ umbral = normal
+- ✅ Percentil configurable (default: 95)
+- ✅ Métricas calculadas: AUC-ROC, AUC-PR
+
+---
+
+### ✅ IV.5. Otras Estrategias de Detección (Línea 135)
+
+**Requisito del enunciado:**
+> **Nota:** El estudiante puede implementar también otras estrategias de detección, como la distancia euclidiana, reconstrucción basada en error (reconstruction loss). Debe justificarse la implementada en el notebook
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4361: Métodos soportados: `["mahalanobis", "euclidean", "reconstruction_loss"]`
+
+#### 1. Distancia Euclidiana
+
+**Ubicación:**
+- Línea 4409-4419: Implementación:
+  ```python
+  elif method == "euclidean":
+      # Distancia euclidiana: d = ||z - μ||
+      test_normal_distances = np.linalg.norm(test_normal_embeddings - mean, axis=1)
+      test_anomaly_distances = np.linalg.norm(test_anomaly_embeddings - mean, axis=1)
+  ```
+
+**Notas:**
+- ✅ Implementada: $d = ||\mathbf{z} - \boldsymbol{\mu}||$
+- ✅ Métrica más simple que Mahalanobis (no considera correlaciones)
+
+#### 2. Reconstruction Loss
+
+**Ubicación:**
+- Línea 4421-4440: Implementación:
+  ```python
+  elif method == "reconstruction_loss":
+      # Error de reconstrucción: MSE entre reconstrucción y original
+      test_normal_distances = np.mean((test_reconstructions - test_originals) ** 2, axis=(1, 2, 3))
+      test_anomaly_distances = np.mean((test_anomaly_recon - test_anomaly_orig) ** 2, axis=(1, 2, 3))
+  ```
+
+**Notas:**
+- ✅ Implementada para autoencoders (Modelo C)
+- ✅ Compara imágenes reconstruidas vs originales
+- ✅ Responde a la pregunta: "¿Existen diferencias entre las imágenes que estamos haciendo con las originales?"
+
+**Justificación en notebook:**
+- Línea 4114-4117: Documentación de métodos:
+  ```markdown
+  **Métodos de evaluación**:
+  - **Distancia de Mahalanobis**: d = sqrt((z - μ)^T Σ^(-1) (z - μ))
+  - **Distancia Euclidiana**: d = ||z - μ||
+  - **Reconstruction Loss**: Error de reconstrucción para autoencoders
+  ```
+
+**Notas:**
+- ✅ Tres métodos implementados: Mahalanobis, Euclidiana, Reconstruction Loss
+- ✅ Cada método tiene su justificación y uso apropiado
+- ✅ Mahalanobis: Considera correlaciones (más robusto)
+- ✅ Euclidiana: Métrica simple y rápida
+- ✅ Reconstruction Loss: Específico para autoencoders
+
+---
+
+## Verificación: Sección V. MODELOS CUANTIZADOS (Líneas 137-139)
+
+**Fecha de verificación:** 2025-01-27
+
+### ✅ V.1. Selección de los 3 Mejores Modelos (Línea 139)
+
+**Requisito del enunciado:**
+> Para esto, convierta los **tres modelos con mejores resultados** de acuerdo a su criterio a modelos cuantizados
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4720-4728: Selección de los 3 mejores modelos:
+  ```python
+  # Ordenar por AUC-ROC (usar el mejor método para cada modelo)
+  sorted_results = sorted(
+      all_evaluation_results,
+      key=lambda x: max(x.get("auc_roc", 0), x.get("auc_roc_mah", 0), x.get("auc_roc_recon", 0)),
+      reverse=True
+  )
+  best_3_models = sorted_results[:3]
+  ```
+- Línea 4540: Documentación: "Los mejores modelos se seleccionan según AUC-ROC para cuantización y análisis DBSCAN"
+- Línea 4730-4733: Visualización de los top 3 modelos
+
+**Criterio de selección:**
+- ✅ Selección basada en AUC-ROC (métrica de rendimiento)
+- ✅ Considera el mejor método de evaluación para cada modelo (Mahalanobis, Euclidiana, Reconstruction Loss)
+- ✅ Ordena de mayor a menor AUC-ROC y toma los primeros 3
+
+**Notas:**
+- ✅ Criterio claro y justificado (AUC-ROC como métrica principal)
+- ✅ Permite comparar modelos de diferentes tipos (A, B, C)
+
+---
+
+### ✅ V.2. Conversión a Modelos Cuantizados (Línea 139)
+
+**Requisito del enunciado:**
+> convierta los **tres modelos con mejores resultados** de acuerdo a su criterio a modelos cuantizados
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4800-4818: Función `quantize_model()`:
+  ```python
+  def quantize_model(model, method="dynamic"):
+      """
+      Cuantiza un modelo PyTorch
+      """
+      model.eval()
+      if method == "dynamic":
+          quantized_model = torch.quantization.quantize_dynamic(
+              model, {torch.nn.Linear, torch.nn.Conv2d}, dtype=torch.qint8
+          )
+  ```
+- Línea 4838-5040: Proceso de cuantización de los 3 mejores modelos:
+  ```python
+  for i, best_model_info in enumerate(best_3_models, 1):
+      # Extraer modelo base
+      # Cuantizar modelo
+      quantized_model = quantize_model(model_to_quantize, method="dynamic")
+  ```
+
+**Método de cuantización:**
+- ✅ Cuantización dinámica de PyTorch (`torch.quantization.quantize_dynamic`)
+- ✅ Cuantiza capas `Linear` y `Conv2d` a `qint8` (int8)
+- ✅ Reduce precisión de float32 a int8
+
+**Notas:**
+- ✅ Conversión implementada correctamente
+- ✅ Modelos se ponen en modo evaluación antes de cuantizar
+- ✅ Soporta cuantización dinámica (método más común)
+
+---
+
+### ✅ V.3. Comparación de Tamaño (Línea 139)
+
+**Requisito del enunciado:**
+> y realice una comparación de latencias en respuesta, tamaño, y rendimiento
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4821-4835: Función `compare_model_sizes()`:
+  ```python
+  def compare_model_sizes(original_model, quantized_model):
+      """Compara el tamaño de modelos original y cuantizado"""
+      def get_model_size(model):
+          param_size = sum(p.numel() * p.element_size() for p in model.parameters())
+          buffer_size = sum(b.numel() * b.element_size() for b in model.buffers())
+          return param_size + buffer_size
+      
+      original_size = get_model_size(original_model)
+      quantized_size = get_model_size(quantized_model)
+      
+      return {
+          'original_size_mb': original_size / (1024 * 1024),
+          'quantized_size_mb': quantized_size / (1024 * 1024),
+          'compression_ratio': original_size / quantized_size if quantized_size > 0 else 0
+      }
+  ```
+- Línea 4878-4879: Uso en comparación:
+  ```python
+  size_comparison = compare_model_sizes(model_to_quantize, quantized_model)
+  ```
+- Línea 5003-5005: Almacenamiento en resultados:
+  ```python
+  "original_size_mb": size_comparison['original_size_mb'],
+  "quantized_size_mb": size_comparison['quantized_size_mb'],
+  "compression_ratio": size_comparison['compression_ratio']
+  ```
+- Línea 5020-5023: Visualización:
+  ```python
+  print(f"  Tamaño:")
+  print(f"    Original: {size_comparison['original_size_mb']:.2f} MB")
+  print(f"    Cuantizado: {size_comparison['quantized_size_mb']:.2f} MB")
+  print(f"    Compresión: {size_comparison['compression_ratio']:.2f}x")
+  ```
+
+**Métricas de tamaño:**
+- ✅ Tamaño original en MB
+- ✅ Tamaño cuantizado en MB
+- ✅ Ratio de compresión (cuántas veces más pequeño es el modelo cuantizado)
+
+**Notas:**
+- ✅ Comparación de tamaño implementada correctamente
+- ✅ Calcula tamaño considerando parámetros y buffers
+- ✅ Muestra ratio de compresión para evaluar eficiencia
+
+---
+
+### ✅ V.4. Comparación de Latencia en Respuesta (Línea 139)
+
+**Requisito del enunciado:**
+> y realice una comparación de latencias en respuesta, tamaño, y rendimiento
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4881-4917: Medición de latencia:
+  ```python
+  # Latencia original - promedio sobre 100 iteraciones
+  latencies_original = []
+  with torch.no_grad():
+      for _ in range(100):
+          start_time = time.time()
+          if hasattr(model_to_quantize, 'get_embedding'):
+              _ = model_to_quantize.get_embedding(test_images)
+          else:
+              _ = model_to_quantize(test_images)
+          latencies_original.append((time.time() - start_time) * 1000)  # ms
+  original_latency = np.mean(latencies_original)
+  
+  # Latencia cuantizado - promedio sobre 100 iteraciones
+  latencies_quantized = []
+  with torch.no_grad():
+      for _ in range(100):
+          start_time = time.time()
+          if hasattr(quantized_model, 'get_embedding'):
+              _ = quantized_model.get_embedding(test_images)
+          else:
+              _ = quantized_model(test_images)
+          latencies_quantized.append((time.time() - start_time) * 1000)  # ms
+  quantized_latency = np.mean(latencies_quantized)
+  ```
+- Línea 5006-5007: Almacenamiento:
+  ```python
+  "original_latency_ms": original_latency,
+  "quantized_latency_ms": quantized_latency,
+  "speedup": original_latency / quantized_latency if quantized_latency > 0 else 0
+  ```
+- Línea 5025-5028: Visualización:
+  ```python
+  print(f"  Latencia (promedio sobre 100 iteraciones):")
+  print(f"    Original: {original_latency:.2f} ms")
+  print(f"    Cuantizado: {quantized_latency:.2f} ms")
+  print(f"    Speedup: {original_latency / quantized_latency if quantized_latency > 0 else 0:.2f}x")
+  ```
+
+**Métricas de latencia:**
+- ✅ Latencia original (ms) - promedio sobre 100 iteraciones
+- ✅ Latencia cuantizada (ms) - promedio sobre 100 iteraciones
+- ✅ Speedup (cuántas veces más rápido es el modelo cuantizado)
+
+**Notas:**
+- ✅ Medición de latencia implementada correctamente
+- ✅ Promedio sobre 100 iteraciones para mayor precisión
+- ✅ Calcula speedup para evaluar mejora en velocidad
+- ✅ Mide tiempo de inferencia (extracción de embeddings)
+
+---
+
+### ✅ V.5. Comparación de Rendimiento (Línea 139)
+
+**Requisito del enunciado:**
+> y realice una comparación de latencias en respuesta, tamaño, y rendimiento
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 4940-4992: Evaluación de rendimiento:
+  ```python
+  # Evaluar modelo original
+  original_performance = {
+      'auc_roc': result.get('auc_roc', 0),
+      'auc_pr': result.get('auc_pr', 0)
+  }
+  
+  # Evaluar modelo cuantizado
+  eval_quantized = evaluate_anomaly_detection(
+      model=quantized_lightning,
+      normal_dataloader=data_module.val_dataloader(),
+      test_dataloader=data_module.test_dataloader(),
+      device=device,
+      method="mahalanobis",
+      percentile=95
+  )
+  quantized_performance = {
+      'auc_roc': eval_quantized['auc_roc'],
+      'auc_pr': eval_quantized['auc_pr']
+  }
+  
+  # Calcular diferencia de rendimiento
+  performance_diff_auc_roc = original_performance['auc_roc'] - quantized_performance['auc_roc']
+  performance_retention_auc_roc = (quantized_performance['auc_roc'] / original_performance['auc_roc'] * 100) if original_performance['auc_roc'] > 0 else 0
+  ```
+- Línea 5008-5015: Almacenamiento:
+  ```python
+  "original_auc_roc": original_performance['auc_roc'],
+  "quantized_auc_roc": quantized_performance['auc_roc'],
+  "original_auc_pr": original_performance['auc_pr'],
+  "quantized_auc_pr": quantized_performance['auc_pr'],
+  "performance_diff_auc_roc": performance_diff_auc_roc,
+  "performance_diff_auc_pr": performance_diff_auc_pr,
+  "performance_retention_auc_roc": performance_retention_auc_roc,
+  "performance_retention_auc_pr": performance_retention_auc_pr
+  ```
+- Línea 5030-5040: Visualización:
+  ```python
+  print(f"  Rendimiento (AUC-ROC):")
+  print(f"    Original: {original_performance['auc_roc']:.4f}")
+  print(f"    Cuantizado: {quantized_performance['auc_roc']:.4f}")
+  print(f"    Diferencia: {performance_diff_auc_roc:+.4f}")
+  print(f"    Retención: {performance_retention_auc_roc:.2f}%")
+  ```
+
+**Métricas de rendimiento:**
+- ✅ AUC-ROC original vs cuantizado
+- ✅ AUC-PR original vs cuantizado
+- ✅ Diferencia de rendimiento (cuánto se pierde)
+- ✅ Porcentaje de retención de rendimiento (cuánto se mantiene)
+
+**Notas:**
+- ✅ Comparación de rendimiento implementada correctamente
+- ✅ Usa las mismas métricas que la evaluación principal (AUC-ROC, AUC-PR)
+- ✅ Calcula diferencia y retención para evaluar impacto de cuantización
+
+---
+
+### ✅ V.6. Análisis Incluido en el Informe (Línea 139)
+
+**Requisito del enunciado:**
+> incluya este análisis en su informe
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5042-5075: Resumen comparativo completo:
+  ```python
+  print("="*80)
+  print("RESUMEN COMPARATIVO DE CUANTIZACIÓN")
+  print("="*80)
+  print("\nComparación de los 3 mejores modelos: Original vs Cuantizado\n")
+  
+  for i, result in enumerate(quantization_results, 1):
+      print(f"{i}. {result['model_type']} - {result['config']}")
+      print(f"   Tamaño: Original: {result['original_size_mb']:.2f} MB → Cuantizado: {result['quantized_size_mb']:.2f} MB")
+      print(f"   Compresión: {result['compression_ratio']:.2f}x")
+      print(f"   Latencia: Original: {result['original_latency_ms']:.2f} ms → Cuantizado: {result['quantized_latency_ms']:.2f} ms")
+      print(f"   Speedup: {result['speedup']:.2f}x")
+      print(f"   Rendimiento (AUC-ROC): Original: {result['original_auc_roc']:.4f} → Cuantizado: {result['quantized_auc_roc']:.4f}")
+      print(f"   Diferencia: {result['performance_diff_auc_roc']:+.4f} ({result['performance_retention_auc_roc']:.2f}% retención)")
+  ```
+- Línea 5077-5088: Resumen estadístico:
+  ```python
+  print("="*80)
+  print("RESUMEN ESTADÍSTICO")
+  print("="*80)
+  avg_compression = np.mean([r['compression_ratio'] for r in quantization_results])
+  avg_speedup = np.mean([r['speedup'] for r in quantization_results])
+  avg_retention_auc_roc = np.mean([r['performance_retention_auc_roc'] for r in quantization_results])
+  avg_retention_auc_pr = np.mean([r['performance_retention_auc_pr'] for r in quantization_results])
+  
+  print(f"\nPromedio de compresión: {avg_compression:.2f}x")
+  print(f"Promedio de speedup: {avg_speedup:.2f}x")
+  print(f"Retención promedio de rendimiento (AUC-ROC): {avg_retention_auc_roc:.2f}%")
+  print(f"Retención promedio de rendimiento (AUC-PR): {avg_retention_auc_pr:.2f}%")
+  ```
+
+**Análisis incluido:**
+- ✅ Comparación detallada por modelo (tamaño, latencia, rendimiento)
+- ✅ Resumen estadístico con promedios
+- ✅ Visualización clara de resultados
+- ✅ Métricas calculadas y documentadas
+
+**Notas:**
+- ✅ Análisis completo y estructurado
+- ✅ Fácil de incluir en informe
+- ✅ Incluye promedios para análisis general
+
+---
+
+## Verificación: Sección VI. ANÁLISIS DE OUTLIERS MEDIANTE DBSCAN CLUSTERING (Líneas 141-150)
+
+**Fecha de verificación:** 2025-01-27
+
+### ✅ VI.1. Selección del Mejor Modelo (Línea 143)
+
+**Requisito del enunciado:**
+> Una vez identificado el mejor modelo de detección de anomalías —ya sea el clasificador CNN entrenado desde cero, su versión distilada mediante teacher–student, o el modelo autoencoder basado en U-Net— proceda a utilizar sus embeddings como insumo para realizar un análisis adicional mediante técnicas de agrupamiento no supervisado.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5391-5393: Selección del mejor modelo:
+  ```python
+  if best_3_models:
+      best_model_info = best_3_models[0]  # Toma el mejor (primer lugar)
+      print(f"Analizando con el mejor modelo: {best_model_info['model_type']} - {best_model_info['config']}")
+  ```
+- Línea 5395-5415: Búsqueda del modelo en los resultados:
+  ```python
+  if best_model_info['model_type'] == "Modelo A":
+      # Buscar en model_a_results
+  elif best_model_info['model_type'] == "Modelo B":
+      # Buscar en model_b_results
+  elif best_model_info['model_type'] == "Modelo C":
+      # Buscar en model_c_results
+  ```
+- Línea 4540: Documentación: "Los mejores modelos se seleccionan según AUC-ROC para cuantización y análisis DBSCAN"
+
+**Notas:**
+- ✅ Selecciona el mejor modelo según AUC-ROC (mismo criterio que para cuantización)
+- ✅ Soporta los tres tipos de modelos (A, B, C)
+- ✅ El mejor modelo es el primero de `best_3_models` (mayor AUC-ROC)
+
+---
+
+### ✅ VI.2. Extracción de Embeddings del Conjunto de Prueba (Línea 145)
+
+**Requisito del enunciado:**
+> Extraiga los embeddings generados por el modelo seleccionado para cada imagen del conjunto de prueba.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5417-5446: Extracción de embeddings:
+  ```python
+  # Extraer embeddings del conjunto de prueba
+  all_embeddings = []
+  all_labels = []
+  
+  best_model.eval()
+  with torch.no_grad():
+      for batch in data_module.test_dataloader():
+          images = images.to(device)
+          
+          # Extraer embeddings
+          if hasattr(best_model, 'get_embedding'):
+              embeddings = best_model.get_embedding(images)
+          elif hasattr(best_model, 'model') and hasattr(best_model.model, 'get_embedding'):
+              embeddings = best_model.model.get_embedding(images)
+          else:
+              logits, embeddings = best_model.model(images)
+          
+          all_embeddings.append(embeddings.cpu().numpy())
+          if labels is not None:
+              all_labels.append(labels.cpu().numpy())
+  
+  all_embeddings = np.concatenate(all_embeddings, axis=0)
+  all_labels = np.concatenate(all_labels, axis=0) if all_labels else None
+  ```
+
+**Notas:**
+- ✅ Extrae embeddings de todas las imágenes del conjunto de prueba
+- ✅ Soporta diferentes formas de extraer embeddings según el tipo de modelo
+- ✅ Guarda también las etiquetas (ground truth) para comparación
+
+---
+
+### ✅ VI.3. Reducción de Dimensionalidad con PCA y t-SNE (Línea 145)
+
+**Requisito del enunciado:**
+> Con el fin de facilitar tanto la visualización como la separación estructural, aplique reducción de dimensionalidad con **PCA** y **t-SNE**.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 292-293: Importaciones:
+  ```python
+  from sklearn.decomposition import PCA
+  from sklearn.manifold import TSNE
+  ```
+- Línea 5185-5196: Aplicación de PCA:
+  ```python
+  # Reducción de dimensionalidad con PCA
+  if use_pca and embeddings.shape[1] > pca_components:
+      print(f"  Aplicando PCA: {embeddings.shape[1]} → {pca_components} dimensiones")
+      pca = PCA(n_components=pca_components)
+      embeddings_reduced = pca.fit_transform(embeddings)
+      explained_variance = np.sum(pca.explained_variance_ratio_)
+      print(f"  ✓ Varianza explicada por PCA: {explained_variance:.4f} ({explained_variance*100:.2f}%)")
+  ```
+- Línea 5213-5223: Aplicación de t-SNE:
+  ```python
+  # Reducción para visualización con t-SNE
+  if use_tsne:
+      print(f"  Aplicando t-SNE para visualización 2D...")
+      perplexity = min(tsne_perplexity, len(embeddings_reduced) - 1)
+      if perplexity > 0:
+          tsne = TSNE(n_components=tsne_components, random_state=42, perplexity=perplexity)
+          embeddings_2d = tsne.fit_transform(embeddings_reduced)
+          print(f"  ✓ t-SNE completado: {embeddings_reduced.shape[1]} → {tsne_components} dimensiones")
+  ```
+
+**Configuración:**
+- Línea 1071-1075: En `conf/config.yaml`:
+  ```yaml
+  dbscan:
+    use_pca: true
+    pca_components: 50
+    use_tsne: true
+    tsne_components: 2
+    tsne_perplexity: 30
+  ```
+
+**Proceso:**
+- ✅ **PCA**: Reduce dimensionalidad manteniendo varianza (configurable, default: 50 componentes)
+- ✅ **t-SNE**: Reduce a 2D para visualización preservando estructura local
+- ✅ Proceso: Embeddings originales → PCA → DBSCAN → t-SNE (para visualización)
+
+**Notas:**
+- ✅ PCA aplicado antes de DBSCAN (facilita procesamiento)
+- ✅ t-SNE aplicado después de DBSCAN (para visualización 2D)
+- ✅ Configuración flexible mediante YAML
+
+---
+
+### ✅ VI.4. Aplicación de DBSCAN (Líneas 143, 147)
+
+**Requisito del enunciado:**
+> En particular **DBSCAN** (Density-Based Spatial Clustering of Applications with Noise), un método basado en densidad que permite identificar regiones de alta concentración en el espacio latente y, simultáneamente, detectar puntos aislados que pueden interpretarse como outliers o anomalías.  
+> Una vez obtenidas las representaciones latentes reducidas aplique **DBSCAN**.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 294: Importación: `from sklearn.cluster import DBSCAN`
+- Línea 5159-5233: Función `dbscan_analysis()`:
+  ```python
+  def dbscan_analysis(embeddings, eps=0.5, min_samples=5, use_pca=True, pca_components=50,
+                      use_tsne=True, tsne_components=2, tsne_perplexity=30):
+      # Aplicar DBSCAN
+      dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+      clusters = dbscan.fit_predict(embeddings_reduced)
+      
+      # Identificar outliers (ruido)
+      n_clusters = len(set(clusters)) - (1 if -1 in clusters else 0)
+      n_noise = list(clusters).count(-1)
+  ```
+- Línea 5461-5470: Aplicación en el mejor modelo:
+  ```python
+  dbscan_results = dbscan_analysis(
+      embeddings=all_embeddings,
+      eps=dbscan_config.get("eps", 0.5),
+      min_samples=dbscan_config.get("min_samples", 5),
+      use_pca=dbscan_config.get("use_pca", True),
+      pca_components=dbscan_config.get("pca_components", 50),
+      use_tsne=dbscan_config.get("use_tsne", True),
+      tsne_components=dbscan_config.get("tsne_components", 2),
+      tsne_perplexity=dbscan_config.get("tsne_perplexity", 30)
+  )
+  ```
+
+**Configuración:**
+- Línea 1068-1075: En `conf/config.yaml`:
+  ```yaml
+  dbscan:
+    eps: 0.5
+    min_samples: 5
+  ```
+
+**Notas:**
+- ✅ DBSCAN aplicado correctamente
+- ✅ Identifica clusters (regiones de alta densidad)
+- ✅ Identifica outliers/ruido (puntos etiquetados como -1)
+- ✅ Parámetros configurables (eps, min_samples)
+
+---
+
+### ✅ VI.5. Interpretación de Ruido como Anomalías (Línea 147)
+
+**Requisito del enunciado:**
+> Desde la perspectiva de la detección de anomalías, los puntos etiquetados por DBSCAN como ruido constituyen una indicación natural de potencial anomalía, ya que representan vectores que se encuentran en zonas de baja densidad del espacio latente.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5203-5211: Identificación de outliers:
+  ```python
+  # Identificar outliers (ruido)
+  n_clusters = len(set(clusters)) - (1 if -1 in clusters else 0)
+  n_noise = list(clusters).count(-1)  # Puntos etiquetados como -1 son ruido
+  n_in_clusters = len(clusters) - n_noise
+  
+  print(f"  ✓ DBSCAN completado:")
+  print(f"    - Clusters encontrados: {n_clusters}")
+  print(f"    - Puntos en clusters: {n_in_clusters}")
+  print(f"    - Outliers (ruido): {n_noise}")
+  ```
+- Línea 5482-5483: Uso para detección de anomalías:
+  ```python
+  dbscan_outliers = (dbscan_results['clusters'] == -1).astype(int)  # 1 = outlier/anomalía
+  true_anomalies = all_labels  # Ground truth
+  ```
+
+**Notas:**
+- ✅ Puntos etiquetados como -1 se interpretan como outliers/anomalías
+- ✅ Se comparan con ground truth para evaluación
+- ✅ Lógica correcta: ruido = baja densidad = potencial anomalía
+
+---
+
+### ✅ VI.6. Análisis Visual (Línea 149)
+
+**Requisito del enunciado:**
+> Analice los resultados desde el punto de vista visual
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5240-5334: Función `visualize_dbscan_results()`:
+  ```python
+  def visualize_dbscan_results(dbscan_results, labels=None, save_path=None):
+      """
+      Visualiza los resultados de DBSCAN de forma completa.
+      
+      Muestra:
+      1. Clustering DBSCAN (clusters y outliers)
+      2. Comparación con ground truth labels
+      3. Análisis de distribución de outliers vs normales
+      """
+  ```
+
+**Visualizaciones implementadas:**
+
+1. **Clustering DBSCAN** (Líneas 5255-5268):
+   - ✅ Muestra clusters con diferentes colores
+   - ✅ Muestra outliers (ruido) en negro con marcador 'x'
+   - ✅ Leyenda con número de clusters y outliers
+
+2. **Ground Truth Labels** (Líneas 5270-5281):
+   - ✅ Compara con etiquetas reales (normal vs anomalía)
+   - ✅ Verde para normales, rojo para anomalías
+   - ✅ Permite comparar visualmente con DBSCAN
+
+3. **DBSCAN Outliers vs Ground Truth** (Líneas 5283-5316):
+   - ✅ Visualización combinada:
+     - Normal en cluster (lightgreen, pequeño)
+     - Normal como outlier DBSCAN (green, grande, 'x')
+     - Anomalía en cluster (lightcoral, pequeño)
+     - Anomalía como outlier DBSCAN (red, grande, 'x')
+   - ✅ Facilita identificar coincidencias y discrepancias
+
+**Ubicación de uso:**
+- Línea 5479: `visualize_dbscan_results(dbscan_results, labels=all_labels, save_path=save_path)`
+
+**Notas:**
+- ✅ Tres visualizaciones diferentes para análisis completo
+- ✅ Comparación visual con ground truth
+- ✅ Guarda visualización en archivo (opcional)
+- ✅ Usa t-SNE 2D para visualización
+
+---
+
+### ✅ VI.7. Análisis Cuantitativo (Línea 149)
+
+**Requisito del enunciado:**
+> Analice los resultados desde el punto de vista visual, y cuantitativa del resultado de la clasificación de anomalías.
+
+**Estado:** ✅ **IMPLEMENTADO**
+
+**Ubicación en notebook:**
+- Línea 5481-5550: Análisis cuantitativo completo:
+  ```python
+  # Análisis cuantitativo: Comparar outliers de DBSCAN con ground truth
+  if all_labels is not None:
+      dbscan_outliers = (dbscan_results['clusters'] == -1).astype(int)
+      true_anomalies = all_labels
+      
+      # Calcular métricas de clasificación
+      dbscan_auc = roc_auc_score(true_anomalies, dbscan_outliers)
+      dbscan_ap = average_precision_score(true_anomalies, dbscan_outliers)
+      
+      # Matriz de confusión
+      cm = confusion_matrix(true_anomalies, dbscan_outliers)
+      tn, fp, fn, tp = cm.ravel()
+      
+      # Calcular precisión, recall, F1, accuracy
+      precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+      recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+      f1_score = 2 * (precision * recall) / (precision + recall)
+      accuracy = (tp + tn) / (tp + tn + fp + fn)
+  ```
+
+**Métricas calculadas:**
+- ✅ **AUC-ROC**: Área bajo curva ROC
+- ✅ **Average Precision (AUC-PR)**: Área bajo curva Precision-Recall
+- ✅ **Accuracy**: Precisión general
+- ✅ **Precision**: Precisión de detección de anomalías
+- ✅ **Recall**: Sensibilidad de detección
+- ✅ **F1-Score**: Media armónica de precisión y recall
+- ✅ **Matriz de Confusión**: TN, FP, FN, TP
+
+**Estadísticas adicionales:**
+- ✅ Total de muestras
+- ✅ Muestras normales vs anómalas (ground truth)
+- ✅ Clusters encontrados
+- ✅ Outliers detectados por DBSCAN
+- ✅ Porcentaje de outliers
+- ✅ Distribución de outliers (normales vs anomalías)
+
+**Notas:**
+- ✅ Análisis cuantitativo completo y detallado
+- ✅ Compara DBSCAN outliers con ground truth
+- ✅ Métricas estándar de clasificación implementadas
+- ✅ Estadísticas descriptivas para entender resultados
+
+---
+
 ## Resumen de Verificación
 
 | Componente | Estado | Observaciones |
@@ -643,6 +1677,30 @@ conf/
 | **Modelo B (destilación teacher-student)** | ✅ | **ResNet-18 como teacher, destilación implementada** |
 | **Extracción de embeddings** | ✅ | **Método get_embedding() implementado** |
 | **3 configuraciones por modelo (9 totales)** | ✅ | **Cumple con requisito de 9 entrenamientos** |
+| **Modelo C (U-Net Autoencoder)** | ✅ | **Basado en U-Net con skip connections** |
+| **Reconstrucción de imágenes** | ✅ | **Forward() reconstruye imágenes de entrada** |
+| **Embeddings del autoencoder** | ✅ | **Extraídos del espacio latente** |
+| **Entrenamiento desde 0 (Modelo C)** | ✅ | **Sin pre-entrenamiento, pesos aleatorios** |
+| **Extracción de embeddings (validación)** | ✅ | **Del conjunto de validación/entrenamiento (solo normales)** |
+| **Estimación distribución normal (μ, Σ)** | ✅ | **Fórmulas exactas según enunciado** |
+| **Distancia de Mahalanobis** | ✅ | **d = sqrt((z - μ)^T Σ^(-1) (z - μ))** |
+| **Clasificación por percentiles** | ✅ | **Umbral basado en percentil de distancias normales** |
+| **Distancia Euclidiana** | ✅ | **d = ||z - μ|| implementada** |
+| **Reconstruction Loss** | ✅ | **MSE entre reconstrucción y original** |
+| **Selección 3 mejores modelos** | ✅ | **Según AUC-ROC, criterio claro** |
+| **Conversión a cuantizados** | ✅ | **Cuantización dinámica implementada** |
+| **Comparación de tamaño** | ✅ | **Original vs cuantizado + ratio compresión** |
+| **Comparación de latencia** | ✅ | **Promedio 100 iteraciones + speedup** |
+| **Comparación de rendimiento** | ✅ | **AUC-ROC y AUC-PR + retención** |
+| **Análisis en informe** | ✅ | **Resumen comparativo y estadístico** |
+| **Selección mejor modelo para DBSCAN** | ✅ | **Mejor según AUC-ROC** |
+| **Extracción embeddings conjunto prueba** | ✅ | **Para todas las imágenes de prueba** |
+| **Reducción dimensionalidad PCA** | ✅ | **Configurable, default 50 componentes** |
+| **Reducción dimensionalidad t-SNE** | ✅ | **2D para visualización** |
+| **Aplicación DBSCAN** | ✅ | **Clusters y outliers identificados** |
+| **Interpretación ruido como anomalías** | ✅ | **Puntos -1 = outliers/anomalías** |
+| **Análisis visual DBSCAN** | ✅ | **3 visualizaciones: clusters, ground truth, comparación** |
+| **Análisis cuantitativo DBSCAN** | ✅ | **AUC-ROC, AUC-PR, matriz confusión, precisión, recall, F1** |
 
 ---
 
@@ -652,8 +1710,12 @@ conf/
 2. ✅ **Completado**: Verificación de implementación de sección III (líneas 21-43)
 3. ✅ **Completado**: Verificación de implementación de PyTorch Lightning (líneas 45-56)
 4. ✅ **Completado**: Verificación de Modelo Clasificador CNN (líneas 58-76)
-5. ⚠️ **Opcional**: Añadir nota explícita en el notebook sobre la pregunta filosófica de detección de anomalías (línea 19 del enunciado)
-6. ⚠️ **Opcional**: Crear scripts externos en carpeta "scripts" y documentarlos en el notebook (según nota del profesor, línea 56)
+5. ✅ **Completado**: Verificación de Modelo C Autoencoder U-Net (líneas 78-84)
+6. ✅ **Completado**: Verificación de Evaluación de Anomalías (líneas 103-136)
+7. ✅ **Completado**: Verificación de Modelos Cuantizados (líneas 137-139)
+8. ✅ **Completado**: Verificación de Análisis DBSCAN (líneas 141-150)
+9. ⚠️ **Opcional**: Añadir nota explícita en el notebook sobre la pregunta filosófica de detección de anomalías (línea 19 del enunciado)
+10. ⚠️ **Opcional**: Crear scripts externos en carpeta "scripts" y documentarlos en el notebook (según nota del profesor, línea 56)
 
 ---
 
@@ -695,4 +1757,45 @@ conf/
   - Confirmado: 3 configuraciones para Modelo B (variando hiperparámetros y destilación)
   - Confirmado: 3 configuraciones para Modelo C (variando hiperparámetros)
   - Confirmado: Total de 9 entrenamientos (cumple con requisito)
+
+- **2025-01-27**: Verificación de sección III.B Modelo C Autoencoder U-Net (líneas 78-84 del enunciado)
+  - Confirmado: Autoencoder basado en U-Net con skip connections implementado
+  - Confirmado: Encoder, bottleneck y decoder con skip connections correctamente implementados
+  - Confirmado: Reconstrucción de imágenes implementada (forward() reconstruye entrada)
+  - Confirmado: Extracción de embeddings del espacio latente implementada
+  - Confirmado: Método get_embedding() implementado para extraer embeddings
+  - Confirmado: Entrenamiento completamente desde 0 (sin pre-entrenamiento)
+  - Confirmado: Similar a implementación de Tarea 5 (como menciona la nota)
+  - Confirmado: Permite comparación con Modelos A y B (diferentes arquitecturas para embeddings)
+
+- **2025-01-27**: Verificación de sección IV Evaluación de Anomalías (líneas 103-136 del enunciado)
+  - Confirmado: Extracción de embeddings del conjunto de validación/entrenamiento (solo datos normales)
+  - Confirmado: Estimación de distribución normal: μ = (1/N) Σ z_i y Σ = (1/(N-1)) Σ (z_i - μ)(z_i - μ)^T
+  - Confirmado: Fórmulas implementadas exactamente como en el enunciado
+  - Confirmado: Cálculo de distancia de Mahalanobis: d = sqrt((z - μ)^T Σ^(-1) (z - μ))
+  - Confirmado: Clasificación usando percentiles (umbral basado en percentil de distancias normales)
+  - Confirmado: Distancia Euclidiana implementada: d = ||z - μ||
+  - Confirmado: Reconstruction Loss implementado: MSE entre reconstrucción y original
+  - Confirmado: Tres métodos de detección implementados y justificados
+  - Confirmado: Métricas calculadas: AUC-ROC, AUC-PR
+
+- **2025-01-27**: Verificación de sección V Modelos Cuantizados (líneas 137-139 del enunciado)
+  - Confirmado: Selección de 3 mejores modelos según AUC-ROC (criterio claro y justificado)
+  - Confirmado: Conversión a modelos cuantizados usando cuantización dinámica de PyTorch
+  - Confirmado: Comparación de tamaño: original vs cuantizado + ratio de compresión
+  - Confirmado: Comparación de latencia: promedio sobre 100 iteraciones + speedup
+  - Confirmado: Comparación de rendimiento: AUC-ROC y AUC-PR + diferencia y retención
+  - Confirmado: Análisis completo incluido: resumen comparativo y estadístico
+  - Confirmado: Métricas calculadas para todos los aspectos requeridos
+
+- **2025-01-27**: Verificación de sección VI Análisis DBSCAN (líneas 141-150 del enunciado)
+  - Confirmado: Selección del mejor modelo según AUC-ROC para análisis DBSCAN
+  - Confirmado: Extracción de embeddings del conjunto de prueba (todas las imágenes)
+  - Confirmado: Reducción de dimensionalidad con PCA (configurable, default 50 componentes)
+  - Confirmado: Reducción de dimensionalidad con t-SNE (2D para visualización)
+  - Confirmado: Aplicación de DBSCAN para identificar clusters y outliers
+  - Confirmado: Interpretación de ruido (-1) como anomalías (puntos de baja densidad)
+  - Confirmado: Análisis visual: 3 visualizaciones (clusters, ground truth, comparación)
+  - Confirmado: Análisis cuantitativo: AUC-ROC, AUC-PR, matriz de confusión, precisión, recall, F1
+  - Confirmado: Comparación de outliers DBSCAN con ground truth para evaluación
 
